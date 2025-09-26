@@ -1,0 +1,65 @@
+[
+  {
+    "domain": "hektor.webuntis.com",
+    "hostOnly": true,
+    "httpOnly": true,
+    "name": "JSESSIONID",
+    "path": "/WebUntis",
+    "sameSite": "no_restriction",
+    "secure": true,
+    "session": true,
+    "storeId": "0",
+    "value": "CEA50C01B792628978A12A39E2BAFBE6"
+  },
+  {
+    "domain": "hektor.webuntis.com",
+    "expirationDate": 1759782883.69646,
+    "hostOnly": true,
+    "httpOnly": false,
+    "name": "schoolname",
+    "path": "/WebUntis",
+    "sameSite": "no_restriction",
+    "secure": true,
+    "session": false,
+    "storeId": "0",
+    "value": "\"_ZWh1\""
+  },
+  {
+    "domain": "hektor.webuntis.com",
+    "expirationDate": 1759782883.696491,
+    "hostOnly": true,
+    "httpOnly": false,
+    "name": "Tenant-Id",
+    "path": "/WebUntis",
+    "sameSite": "no_restriction",
+    "secure": true,
+    "session": false,
+    "storeId": "0",
+    "value": "\"6184100\""
+  },
+  {
+    "domain": "hektor.webuntis.com",
+    "hostOnly": true,
+    "httpOnly": false,
+    "name": "traceId",
+    "path": "/WebUntis",
+    "sameSite": "no_restriction",
+    "secure": true,
+    "session": true,
+    "storeId": "0",
+    "value": "8c0b68bd94c96ff3f43c3c58761b48b48cd120f6"
+  },
+  {
+    "domain": ".webuntis.com",
+    "expirationDate": 1759178085.965717,
+    "hostOnly": false,
+    "httpOnly": false,
+    "name": "_sleek_session",
+    "path": "/",
+    "sameSite": "unspecified",
+    "secure": false,
+    "session": false,
+    "storeId": "0",
+    "value": "%7B%22init%22%3A%222025-09-22T20%3A34%3A45.210Z%22%7D"
+  }
+]

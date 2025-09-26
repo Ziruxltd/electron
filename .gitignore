@@ -1,0 +1,38 @@
+# Node modules
+node_modules/
+
+# Electron build output
+/dist/
+/build/
+/out/
+/release/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+electron-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Environment files
+.env
+.env.*
+
+# VSCode settings
+.vscode/
+
+# Compiled source
+*.tsbuildinfo
+
+# Coverage reports
+coverage/
+
+# Misc
+*.log
+*.pid
+*.seed
+*.tgz
+*.swp
