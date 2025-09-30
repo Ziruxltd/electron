@@ -64,7 +64,7 @@ const processUserInput = (userValue) => {
               const subject = entry.position2?.[0]?.current.longName;
               if (zepakClasses.includes(subject)) {
                 zepak.push({
-                  date: day.date,
+                  date: formattedDate(day.date),
                   startTime: extractTime(entry.duration.start),
                   endTime: extractTime(entry.duration.end),
                   subject: subject,
@@ -92,6 +92,11 @@ const processUserInput = (userValue) => {
     req.end();
   });
 };
+
+function formattedDate(date) {
+  const [year, month, dayNum] = date.split("-");
+  return `${dayNum}-${month}-${year}`;
+}
 
 function extractTime(timeStr) {
   timeStr = timeStr.split("T")[1];
