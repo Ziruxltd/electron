@@ -1,10 +1,4 @@
-const zepakClasses = [
-  "Mecánica Aplicada",
-  "Dinámica Estructural",
-  "Automóviles",
-  "Cinemática y Dinámica de Máquinas"
-];
-
 const WEBUNTIS_HOST = "ehu.webuntis.com";
+const MY_TEACHER_ID = 12419;
 
-module.exports = { zepakClasses, WEBUNTIS_HOST };
+module.exports = { WEBUNTIS_HOST, MY_TEACHER_ID };

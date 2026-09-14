@@ -1,7 +1,6 @@
 const https = require("https");
 const cookies = require("../cookies.json");
-const groups = require("../groups.json");
-const { zepakClasses, WEBUNTIS_HOST } = require("./constants");
+const { WEBUNTIS_HOST, MY_TEACHER_ID } = require("./constants");
 
 class SessionExpiredError extends Error {
   constructor(message = "Session expired") {
@@ -122,26 +121,12 @@ function requestSchoolYears(cookieHeader, bearerToken) {
   });
 }
 
-const processUserInput = async (
-  userValue,
-  {
-    session,
-    fetchTimetable = requestTimetable,
-    fetchAuthToken = requestAuthToken,
-    fetchSchoolYears = requestSchoolYears,
-  } = {}
-) => {
-  if (typeof userValue !== "string" || userValue.trim() === "") {
-    throw new Error("Invalid input");
-  }
-
-  const processedValue = userValue.trim().toUpperCase();
-  const grupoId = getGroupIdByShortName(processedValue);
-
-  if (!grupoId) {
-    throw new Error("Group not found");
-  }
-
+const fetchSchedule = async ({
+  session,
+  fetchTimetable = requestTimetable,
+  fetchAuthToken = requestAuthToken,
+  fetchSchoolYears = requestSchoolYears,
+} = {}) => {
   const cookieHeader = buildCookieHeader(cookies, session);
 
   const tokenResponse = await fetchAuthToken(cookieHeader);
@@ -164,14 +149,14 @@ const processUserInput = async (
     cookies.find((c) => c.name === "Tenant-Id").value;
 
   const today = new Date().toISOString().split('T')[0];
-  const fourWeeksFromNow = new Date(Date.now() + 28 * 864e5).toISOString().split('T')[0];
+  const rangeEnd = new Date(Date.now() + 112 * 864e5).toISOString().split('T')[0];
 
   const query = {
     start: today,
-    end: fourWeeksFromNow,
+    end: rangeEnd,
     format: 59,
-    resourceType: "CLASS",
-    resources: grupoId,
+    resourceType: "TEACHER",
+    resources: MY_TEACHER_ID,
     periodTypes: "",
     timetableType: "STANDARD"
   };
@@ -191,7 +176,7 @@ const processUserInput = async (
       Authorization: `Bearer ${bearerToken}`,
       "Tenant-Id": unquote(tenantIdCookieValue),
       "X-Webuntis-Api-School-Year-Id": String(schoolYearId),
-      Referer: `https://${WEBUNTIS_HOST}/timetable/class?date=${today}&entityId=${grupoId}`,
+      Referer: `https://${WEBUNTIS_HOST}/timetable/teacher?date=${today}&entityId=${MY_TEACHER_ID}`,
       Cookie: cookieHeader,
     },
   };
@@ -204,25 +189,22 @@ const processUserInput = async (
 
   try {
     const json = JSON.parse(data);
-    const zepak = [];
+    const schedule = [];
     for (const day of json.days) {
       for (const entry of day.gridEntries) {
-        const subject = entry.position2?.[0]?.current.longName;
-        if (zepakClasses.includes(subject)) {
-          zepak.push({
-            date: formattedDate(day.date),
-            startTime: extractTime(entry.duration.start),
-            endTime: extractTime(entry.duration.end),
-            subject: subject,
-            teacher: entry.position1?.[0]?.current.longName || "N/A",
-            room: entry.position3?.[0]?.current.longName || "N/A",
-            typeClass: entry.position4?.[0]?.current.longName || "N/A",
-          });
-        }
+        schedule.push({
+          date: formattedDate(day.date),
+          startTime: extractTime(entry.duration.start),
+          endTime: extractTime(entry.duration.end),
+          subject: entry.position2?.[0]?.current.longName || "N/A",
+          group: (entry.position1 || []).map((p) => p.current.longName).join(", ") || "N/A",
+          room: entry.position3?.[0]?.current.longName || "N/A",
+          typeClass: entry.position4?.[0]?.current.longName || "N/A",
+        });
       }
     }
-    console.log("CLASES DEL ZEPAK:", zepak);
-    return zepak;
+    console.log("HORARIO DEL PROFESOR:", schedule);
+    return schedule;
   } catch (e) {
     console.error("Error parsing JSON:", data);
     throw new Error("Failed to parse response");
@@ -240,19 +222,9 @@ function extractTime(timeStr) {
   return hours + ":" + minutes;
 }
 
-function getGroupIdByShortName(shortName) {
-  for (let i = 0; i < groups.classes.length; i++) {
-    if (groups.classes[i].class.shortName === shortName) {
-      return groups.classes[i].class.id;
-    }
-  }
-  return false;
-}
-
 module.exports = {
-  processUserInput,
+  fetchSchedule,
   extractTime,
-  getGroupIdByShortName,
   isSessionExpired,
   buildCookieHeader,
   resolveSchoolYearId,

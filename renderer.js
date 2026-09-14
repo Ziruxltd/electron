@@ -1,5 +1,4 @@
 const sendButton = document.getElementById('sendButton')
-const userInput = document.getElementById('userInput')
 const resultDisplay = document.getElementById('result')
 
 const sessionModalOverlay = document.getElementById('sessionModalOverlay')
@@ -9,13 +8,7 @@ const schoolnameInput = document.getElementById('schoolnameInput')
 const tenantIdInput = document.getElementById('tenantIdInput')
 const sessionModalError = document.getElementById('sessionModalError')
 
-sendButton.addEventListener('click', () => runQuery(userInput.value.trim()))
-
-userInput.addEventListener('keydown', (event) => {
-  if (event.key === 'Enter') {
-    runQuery(userInput.value.trim())
-  }
-})
+sendButton.addEventListener('click', () => runQuery())
 
 sessionForm.addEventListener('submit', async (event) => {
   event.preventDefault()
@@ -33,22 +26,16 @@ sessionForm.addEventListener('submit', async (event) => {
   try {
     await window.versions.saveSession(newSession)
     hideSessionModal()
-    await runQuery(userInput.value.trim())
+    await runQuery()
   } catch (error) {
     sessionModalError.textContent = `Error al guardar la sesión: ${error.message}`
   }
 })
 
-async function runQuery (inputValue) {
-  if (inputValue === '') {
-    showMessage('Por favor, ingresa un valor', 'error')
-    return
-  }
-
+async function runQuery () {
   try {
-    const result = await window.versions.processUserInput(inputValue)
+    const result = await window.versions.fetchSchedule()
     renderScheduleTable(result)
-    userInput.value = ''
   } catch (error) {
     if (error.message.includes('SESSION_EXPIRED')) {
       showSessionModal()
@@ -102,7 +89,7 @@ function renderScheduleTable (result) {
             <div class="entry-card">
               <b>${entry.typeClass}</b><br>
               ${entry.startTime} - ${entry.endTime}<br>
-              ${entry.teacher}<br>
+              ${entry.group}<br>
               ${entry.room}
             </div>`
         })

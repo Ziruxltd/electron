@@ -1,6 +1,6 @@
 const { app, BrowserWindow, ipcMain } = require("electron/main");
 const path = require("node:path");
-const { processUserInput, SessionExpiredError } = require("./src/index");
+const { fetchSchedule, SessionExpiredError } = require("./src/index");
 const { loadSession, saveSession } = require("./src/sessionStore");
 
 const createWindow = () => {
@@ -17,12 +17,10 @@ app.whenReady().then(() => {
   const sessionStoreDir = app.getPath("userData");
 
   ipcMain.handle("ping", () => "pong");
-  ipcMain.handle("process-user-input", async (event, userValue) => {
-    console.log("userValue received in main process:", userValue);
-
+  ipcMain.handle("fetch-schedule", async () => {
     try {
       const session = loadSession(sessionStoreDir);
-      return await processUserInput(userValue, { session });
+      return await fetchSchedule({ session });
     } catch (error) {
       if (error instanceof SessionExpiredError) {
         throw new Error("SESSION_EXPIRED");

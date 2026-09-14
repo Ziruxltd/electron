@@ -53,21 +53,6 @@ body {
   padding: 24px;
 }
 
-.input-group label {
-  display: block;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--muted);
-  margin-bottom: 6px;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-
-.input-row {
-  display: flex;
-  gap: 10px;
-}
-
 input[type="text"] {
   flex: 1;
   padding: 10px 14px;

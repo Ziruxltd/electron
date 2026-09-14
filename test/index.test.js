@@ -7,18 +7,9 @@ const {
   resolveSchoolYearId,
   unquote,
   SessionExpiredError,
-  processUserInput,
+  fetchSchedule,
   extractTime,
-  getGroupIdByShortName,
 } = require("../src/index");
-
-const groups = require("../groups.json");
-// processUserInput uppercases the user's input before matching, so pick a
-// fixture whose shortName is already all-uppercase (some entries, like room
-// reservations, aren't) to avoid a false "Group not found" in these tests.
-const validShortName = groups.classes.find(
-  (c) => c.class.shortName === c.class.shortName.toUpperCase()
-).class.shortName;
 
 const okAuthToken = async () => ({ statusCode: 200, data: "FAKE-BEARER-TOKEN" });
 const okSchoolYears = async () => ({
@@ -115,12 +106,12 @@ test("buildCookieHeader solo reemplaza los campos de override presentes, deja el
   );
 });
 
-test("processUserInput rechaza con SessionExpiredError cuando la sesion ha caducado", async () => {
+test("fetchSchedule rechaza con SessionExpiredError cuando la sesion ha caducado", async () => {
   const fakeFetcher = async () => ({ statusCode: 401, data: "" });
 
   await assert.rejects(
     () =>
-      processUserInput(validShortName, {
+      fetchSchedule({
         fetchTimetable: fakeFetcher,
         fetchAuthToken: okAuthToken,
         fetchSchoolYears: okSchoolYears,
@@ -129,12 +120,12 @@ test("processUserInput rechaza con SessionExpiredError cuando la sesion ha caduc
   );
 });
 
-test("processUserInput rechaza con SessionExpiredError si no se puede obtener un token de autenticacion", async () => {
+test("fetchSchedule rechaza con SessionExpiredError si no se puede obtener un token de autenticacion", async () => {
   const failingAuthToken = async () => ({ statusCode: 401, data: "" });
 
   await assert.rejects(
     () =>
-      processUserInput(validShortName, {
+      fetchSchedule({
         fetchAuthToken: failingAuthToken,
         fetchSchoolYears: okSchoolYears,
       }),
@@ -142,12 +133,12 @@ test("processUserInput rechaza con SessionExpiredError si no se puede obtener un
   );
 });
 
-test("processUserInput rechaza con SessionExpiredError si no se puede obtener la lista de cursos escolares", async () => {
+test("fetchSchedule rechaza con SessionExpiredError si no se puede obtener la lista de cursos escolares", async () => {
   const failingSchoolYears = async () => ({ statusCode: 401, data: "" });
 
   await assert.rejects(
     () =>
-      processUserInput(validShortName, {
+      fetchSchedule({
         fetchAuthToken: okAuthToken,
         fetchSchoolYears: failingSchoolYears,
       }),
@@ -155,14 +146,14 @@ test("processUserInput rechaza con SessionExpiredError si no se puede obtener la
   );
 });
 
-test("processUserInput usa la sesion recibida (jsessionid, schoolname, tenantId) para construir la peticion", async () => {
+test("fetchSchedule usa la sesion recibida (jsessionid, schoolname, tenantId) para construir la peticion", async () => {
   let receivedOptions;
   const fakeFetcher = async (options) => {
     receivedOptions = options;
     return { statusCode: 200, data: JSON.stringify({ days: [] }) };
   };
 
-  await processUserInput(validShortName, {
+  await fetchSchedule({
     session: {
       jsessionid: "SESION-CUSTOM",
       schoolname: '"ehu-custom"',
@@ -182,30 +173,103 @@ test("processUserInput usa la sesion recibida (jsessionid, schoolname, tenantId)
   assert.equal(receivedOptions.hostname, "ehu.webuntis.com");
 });
 
-test("processUserInput devuelve el listado de clases cuando la sesion es valida", async () => {
+test("fetchSchedule pide el horario del profesor (resourceType=TEACHER) con el id fijo del profesor", async () => {
+  let receivedOptions;
+  const fakeFetcher = async (options) => {
+    receivedOptions = options;
+    return { statusCode: 200, data: JSON.stringify({ days: [] }) };
+  };
+
+  await fetchSchedule({
+    fetchTimetable: fakeFetcher,
+    fetchAuthToken: okAuthToken,
+    fetchSchoolYears: okSchoolYears,
+  });
+
+  assert.match(receivedOptions.path, /resourceType=TEACHER/);
+  assert.match(receivedOptions.path, /resources=12419/);
+});
+
+test("fetchSchedule devuelve TODAS las clases del profesor, sin filtrar por asignatura", async () => {
+  // En una consulta resourceType=TEACHER, position1 es la clase/grupo que
+  // recibe la sesion (no el profesor: ese ya lo conocemos, somos nosotros).
+  const fakeFetcher = async () => ({
+    statusCode: 200,
+    data: JSON.stringify({
+      days: [
+        {
+          date: "2026-09-15",
+          gridEntries: [
+            {
+              duration: { start: "2026-09-15T08:00", end: "2026-09-15T10:00" },
+              position1: [{ current: { longName: "GMECAX301-306" } }],
+              position2: [{ current: { longName: "Cualquier Asignatura No Zepak" } }],
+              position3: [{ current: { longName: "Aula 1" } }],
+              position4: [{ current: { longName: "Magistral" } }],
+            },
+          ],
+        },
+      ],
+    }),
+  });
+
+  const result = await fetchSchedule({
+    fetchTimetable: fakeFetcher,
+    fetchAuthToken: okAuthToken,
+    fetchSchoolYears: okSchoolYears,
+  });
+
+  assert.equal(result.length, 1);
+  assert.equal(result[0].subject, "Cualquier Asignatura No Zepak");
+  assert.equal(result[0].group, "GMECAX301-306");
+});
+
+test("fetchSchedule une con coma varios grupos cuando una sesion es compartida entre varias clases", async () => {
+  const fakeFetcher = async () => ({
+    statusCode: 200,
+    data: JSON.stringify({
+      days: [
+        {
+          date: "2026-09-15",
+          gridEntries: [
+            {
+              duration: { start: "2026-09-15T08:00", end: "2026-09-15T10:00" },
+              position1: [
+                { current: { longName: "GMECAX246-306" } },
+                { current: { longName: "GINELX246-306" } },
+              ],
+              position2: [{ current: { longName: "Mecánica Aplicada" } }],
+              position3: [{ current: { longName: "P3I 7A" } }],
+              position4: [{ current: { longName: "Magistral" } }],
+            },
+          ],
+        },
+      ],
+    }),
+  });
+
+  const result = await fetchSchedule({
+    fetchTimetable: fakeFetcher,
+    fetchAuthToken: okAuthToken,
+    fetchSchoolYears: okSchoolYears,
+  });
+
+  assert.equal(result[0].group, "GMECAX246-306, GINELX246-306");
+});
+
+test("fetchSchedule devuelve el listado vacio cuando la sesion es valida pero no hay clases", async () => {
   const fakeFetcher = async () => ({
     statusCode: 200,
     data: JSON.stringify({ days: [] }),
   });
 
-  const result = await processUserInput(validShortName, {
+  const result = await fetchSchedule({
     fetchTimetable: fakeFetcher,
     fetchAuthToken: okAuthToken,
     fetchSchoolYears: okSchoolYears,
   });
 
   assert.deepEqual(result, []);
-});
-
-test("processUserInput rechaza con error normal si el input esta vacio (comportamiento existente)", async () => {
-  await assert.rejects(() => processUserInput(""), /Invalid input/);
-});
-
-test("processUserInput rechaza con error normal si el grupo no existe (comportamiento existente)", async () => {
-  await assert.rejects(
-    () => processUserInput("GRUPO-QUE-NO-EXISTE-XYZ"),
-    /Group not found/
-  );
 });
 
 test("resolveSchoolYearId devuelve el id del curso escolar que contiene la fecha dada", () => {
@@ -233,11 +297,4 @@ test("unquote deja igual un valor que no tiene comillas", () => {
 
 test("extractTime sigue extrayendo la hora de un timestamp ISO (comportamiento existente)", () => {
   assert.equal(extractTime("2025-09-22T08:30:00"), "08:30");
-});
-
-test("getGroupIdByShortName sigue encontrando el id por shortName (comportamiento existente)", () => {
-  const expected = groups.classes.find(
-    (c) => c.class.shortName === validShortName
-  ).class.id;
-  assert.equal(getGroupIdByShortName(validShortName), expected);
 });

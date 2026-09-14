@@ -1,6 +1,6 @@
 const { contextBridge, ipcRenderer } = require('electron')
 
 contextBridge.exposeInMainWorld('versions', {
-  processUserInput: (value) => ipcRenderer.invoke('process-user-input', value),
+  fetchSchedule: () => ipcRenderer.invoke('fetch-schedule'),
   saveSession: (session) => ipcRenderer.invoke('save-session', session),
 })
