@@ -2,78 +2,133 @@ const sendButton = document.getElementById('sendButton')
 const userInput = document.getElementById('userInput')
 const resultDisplay = document.getElementById('result')
 
-sendButton.addEventListener('click', async () => {
-  const inputValue = userInput.value.trim()
-  
-  if (inputValue === '') {
-    resultDisplay.textContent = 'Por favor, ingresa un valor'
-    resultDisplay.style.color = 'red'
+const sessionModalOverlay = document.getElementById('sessionModalOverlay')
+const sessionForm = document.getElementById('sessionForm')
+const jsessionidInput = document.getElementById('jsessionidInput')
+const schoolnameInput = document.getElementById('schoolnameInput')
+const tenantIdInput = document.getElementById('tenantIdInput')
+const sessionModalError = document.getElementById('sessionModalError')
+
+sendButton.addEventListener('click', () => runQuery(userInput.value.trim()))
+
+userInput.addEventListener('keydown', (event) => {
+  if (event.key === 'Enter') {
+    runQuery(userInput.value.trim())
+  }
+})
+
+sessionForm.addEventListener('submit', async (event) => {
+  event.preventDefault()
+  const newSession = {
+    jsessionid: jsessionidInput.value.trim(),
+    schoolname: schoolnameInput.value.trim(),
+    tenantId: tenantIdInput.value.trim()
+  }
+
+  if (!newSession.jsessionid || !newSession.schoolname || !newSession.tenantId) {
+    sessionModalError.textContent = 'Rellena los 3 campos'
     return
   }
-  
+
+  try {
+    await window.versions.saveSession(newSession)
+    hideSessionModal()
+    await runQuery(userInput.value.trim())
+  } catch (error) {
+    sessionModalError.textContent = `Error al guardar la sesión: ${error.message}`
+  }
+})
+
+async function runQuery (inputValue) {
+  if (inputValue === '') {
+    showMessage('Por favor, ingresa un valor', 'error')
+    return
+  }
+
   try {
     const result = await window.versions.processUserInput(inputValue)
-    // Prepare table data
-    const subjects = [...new Set(result.map(r => r.subject))];
-    const dates = [...new Set(result.map(r => r.date))];
+    renderScheduleTable(result)
+    userInput.value = ''
+  } catch (error) {
+    if (error.message.includes('SESSION_EXPIRED')) {
+      showSessionModal()
+      return
+    }
+    showMessage(`Error: ${error.message}`, 'error')
+  }
+}
 
-    // Build table header
-    let tableHtml = '<table border="1" style="border-collapse:collapse;width:100%">';
-    tableHtml += '<thead><tr><th>Día</th>';
+function showMessage (text, type) {
+  resultDisplay.innerHTML = `<div class="result-message ${type}">${text}</div>`
+}
+
+function showSessionModal () {
+  sessionModalError.textContent = ''
+  jsessionidInput.value = ''
+  schoolnameInput.value = ''
+  tenantIdInput.value = ''
+  sessionModalOverlay.hidden = false
+  jsessionidInput.focus()
+}
+
+function hideSessionModal () {
+  sessionModalOverlay.hidden = true
+}
+
+function renderScheduleTable (result) {
+  if (!result || result.length === 0) {
+    showMessage('No se han encontrado clases en este periodo', 'success')
+    return
+  }
+
+  const subjects = [...new Set(result.map(r => r.subject))]
+  const dates = [...new Set(result.map(r => r.date))]
+
+  let tableHtml = '<table class="schedule-table">'
+  tableHtml += '<thead><tr><th>Día</th>'
+  subjects.forEach(subject => {
+    tableHtml += `<th>${subject}</th>`
+  })
+  tableHtml += '</tr></thead><tbody>'
+
+  dates.forEach(date => {
+    tableHtml += `<tr><td>${date}<br/>${getDay(date)}</td>`
     subjects.forEach(subject => {
-      tableHtml += `<th>${subject}</th>`;
-    });
-    tableHtml += '</tr></thead><tbody>';
-
-    // Build table rows
-    dates.forEach(date => {
-      tableHtml += `<tr><td> ${date} <br/> ${getDay(date)} </td>`;
-      subjects.forEach(subject => {
-      const entries = result.filter(r => r.date === date && r.subject === subject);
+      const entries = result.filter(r => r.date === date && r.subject === subject)
       if (entries.length > 0) {
-        tableHtml += '<td>';
+        tableHtml += '<td>'
         entries.forEach(entry => {
-            if (entry !== entries[0]) {
-            tableHtml += '<hr/>';
-            }
-            tableHtml += `
-            <div style="border:1px solid #ccc; margin-bottom:4px; padding:4px;">
+          tableHtml += `
+            <div class="entry-card">
               <b>${entry.typeClass}</b><br>
               ${entry.startTime} - ${entry.endTime}<br>
               ${entry.teacher}<br>
               ${entry.room}
-            </div>`;
-        });
-        tableHtml += '</td>';
+            </div>`
+        })
+        tableHtml += '</td>'
       } else {
-        tableHtml += '<td></td>';
+        tableHtml += '<td></td>'
       }
-      });
-      tableHtml += '</tr>';
-    });
+    })
+    tableHtml += '</tr>'
+  })
 
-    tableHtml += '</tbody></table>';
-    resultDisplay.innerHTML = tableHtml;
-    resultDisplay.style.color = 'green'
-    
-    userInput.value = ''
-  } catch (error) {
-    resultDisplay.textContent = `Error: ${error.message}`
-    resultDisplay.style.color = 'red'
-  }
-})
+  tableHtml += '</tbody></table>'
+  resultDisplay.innerHTML = tableHtml
+}
 
-function getDay(date) {
+function getDay (date) {
   const days = [
-    "Domingo",
-    "Lunes",
-    "Martes",
-    "Miércoles",
-    "Jueves",
-    "Viernes",
-    "Sábado"
-  ];
-  const [year, month, dayNum] = date.split("-");
-  const dayIndex = new Date(year, month - 1, dayNum).getDay();
-  return days[dayIndex];
+    'Domingo',
+    'Lunes',
+    'Martes',
+    'Miércoles',
+    'Jueves',
+    'Viernes',
+    'Sábado'
+  ]
+  const [year, month, dayNum] = date.split('-')
+  const dayIndex = new Date(year, month - 1, dayNum).getDay()
+  return days[dayIndex]
 }

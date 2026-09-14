@@ -5,4 +5,6 @@ const zepakClasses = [
   "Cinemática y Dinámica de Máquinas"
 ];
 
-module.exports = { zepakClasses };
+const WEBUNTIS_HOST = "ehu.webuntis.com";
+
+module.exports = { zepakClasses, WEBUNTIS_HOST };
