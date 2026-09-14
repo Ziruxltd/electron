@@ -1,4 +1,6 @@
 const sendButton = document.getElementById('sendButton')
+const sendButtonSpinner = document.getElementById('sendButtonSpinner')
+const sendButtonLabel = document.getElementById('sendButtonLabel')
 const resultDisplay = document.getElementById('result')
 
 const sessionModalOverlay = document.getElementById('sessionModalOverlay')
@@ -33,6 +35,7 @@ sessionForm.addEventListener('submit', async (event) => {
 })
 
 async function runQuery () {
+  setLoading(true)
   try {
     const result = await window.versions.fetchSchedule()
     renderScheduleTable(result)
@@ -42,7 +45,15 @@ async function runQuery () {
       return
     }
     showMessage(`Error: ${error.message}`, 'error')
+  } finally {
+    setLoading(false)
   }
+}
+
+function setLoading (isLoading) {
+  sendButton.disabled = isLoading
+  sendButtonSpinner.hidden = !isLoading
+  sendButtonLabel.textContent = isLoading ? 'Cargando…' : 'Ver mi horario'
 }
 
 function showMessage (text, type) {
